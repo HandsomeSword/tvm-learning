@@ -17,5 +17,5 @@
 """FFI APIs for tvm.ir"""
 import tvm._ffi
 
-
+# 通过_init_api，得到了很多封装了c++函数的对象，可以通过这些对象使用c++函数
 tvm._ffi._init_api("ir", __name__)

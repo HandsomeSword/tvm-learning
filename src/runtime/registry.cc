@@ -93,7 +93,13 @@ const PackedFunc* Registry::Get(const String& name) {
 }
 
 std::vector<String> Registry::ListNames() {
+  // 这里调用Global创建了一个manager对象，返回的对象是一个static，所以只会初始化一次
+  // 当第一次调用这个函数时，就会创建这个manager对象，然后返回
+  // 之后的调用就会直接返回这个创建好的manager对象
   Manager* m = Manager::Global();
+  // 这里的lock是为了同一时间只有一个线程能够访问
+  // 当这个lock对象的生命周期结束，也就是它所属的作用域消失的时候，解锁
+  // 在该段代码中，就是当这个函数返回的时候解锁。
   std::lock_guard<std::mutex> lock(m->mutex);
   std::vector<String> keys;
   keys.reserve(m->fmap.size());
@@ -311,10 +317,18 @@ int TVMFuncGetGlobal(const char* name, TVMFunctionHandle* out) {
 
 int TVMFuncListGlobalNames(int* out_size, const char*** out_array) {
   API_BEGIN();
+  // tvm::runtime::Registry::ListNames()返回的是什么 TODO
+  // 有一个manager结构体，里面存放了一个map，key是string，value是注册的函数。
+  // 这里返回的是这个map的key，也就是函数名
   TVMFuncThreadLocalEntry* ret = TVMFuncThreadLocalStore::Get();
   ret->ret_vec_str = tvm::runtime::Registry::ListNames();
   ret->ret_vec_charp.clear();
   for (size_t i = 0; i < ret->ret_vec_str.size(); ++i) {
+    // 这里的ret_vec_str的类型是tvm封装的string，暂时就理解为是std::string就行
+    // char *和string的区别。string对象存放的也是一个地址，这个地址所指的内存单元存放的就是一个char，
+    // 这点和char *没有区别，但是指针的类型不同。指针的类型会告诉系统怎么读取这个数据
+    // 对于char *来说，就是取走这个单元的数据就完了，string就是会连续读取，直到读到'\0'为止（这是string的结束）
+    // 那么下面这个代码就很容易理解了，就是将string对象，这个指针类型转换成char *类型，从而改变读取的方法。
     ret->ret_vec_charp.push_back(ret->ret_vec_str[i].c_str());
   }
   *out_array = dmlc::BeginPtr(ret->ret_vec_charp);

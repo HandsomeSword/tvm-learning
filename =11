@@ -1,0 +1,39 @@
+Channels:
+ - conda-forge
+ - defaults
+Platform: linux-64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... done
+
+## Package Plan ##
+
+  environment location: /home/robot/anaconda3/envs/tvm-learning
+
+  added / updated specs:
+    - llvmdev
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    icu-73.2                   |       h59595ed_0        11.5 MB  conda-forge
+    libiconv-1.17              |       hd590300_2         689 KB  conda-forge
+    libllvm18-18.1.8           |       hc9dba70_0        36.6 MB  conda-forge
+    libxml2-2.12.7             |       h4c95cb1_3         689 KB  conda-forge
+    llvm-tools-18.1.8          |       hc9dba70_0        31.2 MB  conda-forge
+    llvmdev-18.1.8             |       hc9dba70_0        55.7 MB  conda-forge
+    ------------------------------------------------------------
+                                           Total:       136.3 MB
+
+The following NEW packages will be INSTALLED:
+
+  icu                conda-forge/linux-64::icu-73.2-h59595ed_0 
+  libiconv           conda-forge/linux-64::libiconv-1.17-hd590300_2 
+  libllvm18          conda-forge/linux-64::libllvm18-18.1.8-hc9dba70_0 
+  libxml2            conda-forge/linux-64::libxml2-2.12.7-h4c95cb1_3 
+  llvm-tools         conda-forge/linux-64::llvm-tools-18.1.8-hc9dba70_0 
+  llvmdev            conda-forge/linux-64::llvmdev-18.1.8-hc9dba70_0 
+
+
+Proceed ([y]/n)? 

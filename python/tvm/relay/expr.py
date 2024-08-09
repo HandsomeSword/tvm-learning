@@ -639,9 +639,20 @@ def var(name_hint, type_annotation=None, shape=None, dtype="float32", span=None)
     if type_annotation is not None and shape is not None:
         raise ValueError("Can only specify either type_annotation or shape.")
     if shape is not None:
+        # 通过shape和dtype得到一个TensorType类型对象
+            # 怎么得到的？
+            # TensorType类型有一个__init_handle_by_constructor__函数
+            # 这个函数接受一个C++构造函数，和它需要的参数
+            # 然后需要将python参数转换成c++可以使用的形式，然后传递给TVMFuncCall
+            # 这个函数是一个C++函数，接受构造函数和封装好的参数，然后返回构造好的对象
+            # 值的注意的是，python调用c++函数得到的对象需要通过参数的值返回
+            # 所以参数的值必须得是指针形式
+        # 这个对象封装了一个C++对象，通过.handle访问
         type_annotation = _ty.TensorType(shape, dtype)
     elif isinstance(type_annotation, str):
         type_annotation = _ty.TensorType((), type_annotation)
+    # 得到TensorType对象之后，构造var对象
+    # 和之前类似，也是得到var的构造函数，然后交给TVMFuncCall这个函数运行
     return Var(name_hint, type_annotation, span)
 
 

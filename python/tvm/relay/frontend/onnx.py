@@ -6859,10 +6859,19 @@ class GraphProto:
             A dict of name: tvm.nd.array pairs, used as pretrained weights
         """
         self.opset = opset
+        # 这一步识别网络中的参数。添加了self._params和self._nodes。
+        # self._params是一个字典，形式为{参数名 ： 数据(使用numpy形式)}
+        # self._nodes也是字典，形式为{参数名 ： relay.Var}
         self._parse_graph_initializers(graph)
+
+        # 对输入进行处理，将输入张量添加进self._nodes和self._input中，保存的内容一致。
+        # relay.Var就是relay内部声明的tensor类型。
         self._parse_graph_input(graph)
         self._check_user_inputs_in_outermost_graph_scope()
         self._check_for_unsupported_ops(graph)
+
+
+        # 设置了self._nodes = op
         self._construct_nodes(graph)
 
         # now return the outputs
@@ -6888,6 +6897,7 @@ class GraphProto:
         for init_tensor in graph.initializer:
             if not init_tensor.name.strip():
                 raise ValueError("Tensor's name is required.")
+            # init_tensor就是onnx内部表示的张量，array是一个numpy数组，直观理解就是这个张量的值。
             array = self._parse_array(init_tensor)
             if self._freeze_params:
                 self._nodes[init_tensor.name] = _expr.const(array)
@@ -6961,6 +6971,8 @@ class GraphProto:
         """Nodes are stored as directed acyclic graph."""
         for node in graph.node:
             op_name = node.op_type
+
+            # 这个attr是一个字典，每个node的attr是有很多的属性，用来描述这个op
             attr = self._parse_attr(node.attribute)
             # Fill in span of inputs
             node_source_name = get_source_name(node, self._op_type_dict)
@@ -6972,12 +6984,15 @@ class GraphProto:
                     inputs.append(self._nodes[self._renames.get(i, i)])
                 else:
                     inputs.append(None)
+            # 这里的iname来自node.name，是唯一表示这个node，而opname则是这个op的类型
             i_name = self._parse_value_proto(node)
             node_output = self._fix_outputs(op_name, node.output)
             attr["tvm_custom"] = {}
             attr["tvm_custom"]["name"] = i_name
             attr["tvm_custom"]["num_outputs"] = len(node_output)
 
+
+            # 最关键的一步。
             op = self._convert_operator(op_name, inputs, attr, self.opset)
             if not isinstance(op, _expr.TupleWrapper):
                 outputs_num = 1

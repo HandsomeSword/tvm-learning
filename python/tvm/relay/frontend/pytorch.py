@@ -4774,11 +4774,16 @@ def _redirect_inplace_output(graph):
     """
     for node in graph.nodes():
         if node.kind() == "aten::copy_":
+            # 获得计算图上的每个节点，每个node有变量名，类型，从哪得到的(输入)
             node_inputs = list(node.inputs())
+
+            # node就可以理解为张量，node和node之间通过input连接。_copy节点的输入只有一个
             src_node = node_inputs[0].node()
             slice_and_select_nodes = []
             while True:
                 if src_node.kind() in ["aten::slice", "aten::select", "aten::unsqueeze"]:
+                    # 追踪源节点，也就是该节点的值实际是从哪得到的，上面三个操作并没有对值产生实际上的计算，就是切片，取部分数据，扩维
+                    # 最终找到源节点。
                     src_node = list(src_node.inputs())[0].node()
                     slice_and_select_nodes.append(src_node)
                 else:
@@ -4976,9 +4981,13 @@ def _rename_outputs(
     )
     # get source name of operator and rename all of its outputs
     if node.kind() != "prim::GetAttr":
+        # 这里获得node的source_name，形式是"node.kind()_opidex"。这里的op_idex是该Op在该类op出现的序号。比如在该node之前已经有两个aten::linear了，
+        # 那么当前node的命名就是"aten::linear_3"
         node_src_name = namer.get_node_source_name(node)
         for index, output in enumerate(node.outputs()):
+            # name的形式：node.kind()_opidex_index。最后这个index表示的是该node的第几个输出。
             name = namer.get_node_output_name(node_src_name, index)
+            # 更新node的debugName
             output.setDebugName(name)
         # update source map
         # if use_parser_friendly_name is True: e.g. prim::Constant_0 -> prim__Constant_0
@@ -4999,6 +5008,7 @@ def _debug_rename(graph, use_parser_friendly_name, preserve_pytorch_scopes):
             if node.kind() in prim_with_blocks:
                 for block in node.blocks():
                     _traverse_graph(block.nodes())
+            
             _rename_outputs(
                 node, source_map, op_type_dict, use_parser_friendly_name, preserve_pytorch_scopes
             )
@@ -5057,6 +5067,9 @@ def _get_relay_input_vars(graph, input_infos, prelude, is_module=True, default_d
         msg = f"PyTorch has {len(graph_inputs)} inputs and input_infos lists {len(input_infos)}."
         raise RuntimeError(msg)
 
+
+    # 传递给frontend的info信息和从graph中提取到的info信息
+    # ishape是传入的形状，itype是传入的类型，pt_type是graph_input.type()
     def get_relay_ty(ishape, itype, pt_type):
         if pt_type.kind() == "TensorType":
             if not (_is_int_seq(ishape) or len(ishape) == 0):
@@ -5106,6 +5119,7 @@ def _get_relay_input_vars(graph, input_infos, prelude, is_module=True, default_d
     input_vars = {}
 
     new_input_infos = []
+    # inp是一个元组类似这样(名字，(shape，type))
     for num, inp in enumerate(input_infos):
         if not isinstance(inp, tuple):
             msg = f"Graph input {num} is not a tuple"
@@ -5132,6 +5146,7 @@ def _get_relay_input_vars(graph, input_infos, prelude, is_module=True, default_d
         # Translate from graph input to user input name
         input_vars[ir_input] = inp
 
+    # input_vars是一个字典，key是graph.input.debugName，value包含了输入名称(该名称是指传入tvm.frontend时，用户输入的)、形状、类型。
     return input_vars
 
 
@@ -5356,38 +5371,69 @@ def from_pytorch(
     converter = PyTorchOpConverter(
         prelude, default_dtype, use_parser_friendly_name, preserve_pytorch_scopes
     )
-
+    
+    # scriot_module是torch的ir形式，需要获得计算图
     graph = script_module.graph.copy()
 
     # Check if lower_all_tuples pass can be enabled
+
+    # 确定是否可以进行lower_all_tuples
     graph_inputs = list(graph.inputs())
     for inp in graph_inputs:
         if inp.type().kind() == "TupleType" or inp.type().kind() == "ListType":
             enable_lower_all_tuples = False
             break
-
+    
+    # 运行TorchScript的内部优化方法
     _run_jit_passes(graph, enable_lower_all_tuples)
+
+
+    # 优化计算图
     _redirect_inplace_output(graph)
 
     if custom_convert_map:
         converter.update_convert_map(custom_convert_map)
 
+
+    # 获得所有算子的名字（不重复）
     op_names = get_all_op_names(graph)
+
+    # 检查其中是否有不支持的计算
     converter.report_missing_conversion(op_names)
+
+
+
 
     is_module = isinstance(script_module, torch.jit.ScriptModule)
     params = script_module.state_dict() if is_module else {}
+    # 返回的是一个字典，包含了模型输入的信息。{debugname : (input_user_name, shape, dtype)}
     outputs = _get_relay_input_vars(
         graph, input_infos, prelude, default_dtype=default_dtype, is_module=is_module
     )
+
+
+
 
     if use_parser_friendly_name:
         new_names = [key.replace(".", "_") for key in params.keys()]
         params = dict(zip(new_names, params.values()))
 
+
+
+
+
     # rename _C.Graph here for constructing meaningful source name of graph nodes
     # by doing so, we could Use source_map as the reference to rename model parameters
+
+    # source_map就是存储每个node对应的src_name，格式：node.kind()_opidex。这里的op_idex是该Op在该类op出现的序号。比如在该node之前已经有两个aten::linear了，
+    # 那么当前node的命名就是"aten::linear_3"
+    # 除此之外还将output的debugName修改了(不确定)
     source_map = _debug_rename(graph, use_parser_friendly_name, preserve_pytorch_scopes)
+
+
+
+
+    
     param_vars, tensors, packed_param_map, param_debug_name_map = convert_params(
         graph, params, source_map, use_parser_friendly_name
     )

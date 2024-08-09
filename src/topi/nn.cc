@@ -187,5 +187,23 @@ TVM_REGISTER_GLOBAL("topi.nn.rms_norm").set_body([](TVMArgs args, TVMRetValue* r
   *rv = nn::rms_norm(args[0], args[1], args[2], static_cast<double>(args[3]));
 });
 
+/* test */
+
+float math_add(float x1, float x2)
+{
+  return x1 + x2;
+}
+
+void packed_math_add(TVMArgs args, TVMRetValue* rv) {
+  printf("call packed_math_add\r\n");
+  printf("arg[0]:%f, arg[1]:%f\r\n", args.values[0].v_float64, args.values[1].v_float64);
+  printf("type_codes[0]:%d, type_codes[1]:%d\r\n", args.type_codes[0], args.type_codes[1]);
+  printf("num_args:%d\r\n", args.num_args);
+  *rv = math_add(args.values[0].v_float64, args.values[1].v_float64);
+}
+
+TVM_REGISTER_GLOBAL("topi.nn.math_add").set_body(packed_math_add);
+
+
 }  // namespace topi
 }  // namespace tvm

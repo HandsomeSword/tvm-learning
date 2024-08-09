@@ -245,6 +245,9 @@ def list_global_func_names():
     plist = ctypes.POINTER(ctypes.c_char_p)()
     size = ctypes.c_uint()
 
+    # 这里ctypes.byref就是获得了括号内对象的指针。
+    # 这里通过调用c++里的TVMFuncListGlobalNames函数，得到了注册函数的名字（string）列表
+    # check_all是用来检查返回是否正常。
     check_call(_LIB.TVMFuncListGlobalNames(ctypes.byref(size), ctypes.byref(plist)))
     fnames = []
     for i in range(size.value):
@@ -312,9 +315,17 @@ def _init_api(namespace, target_module_name=None):
         _init_api_prefix(target_module_name, namespace)
 
 
+# module_name = 'tvm.ir._ffi_api' prefix = "ir"
 def _init_api_prefix(module_name, prefix):
     module = sys.modules[module_name]
-
+    # list函数获得了c++的注册函数名
+    # 然后遍历这些函数名，找到开头是prefix的
+    # 找到之后取出名字中'prefix.xxx'
+    # 然后通过name得到这个c++函数，这个c++函数会被封装成一个python对象
+    # 然后修改这个对象的is_global值为true
+    # 然后通过setattr函数，将ff对象放入target_module中
+    # 也就是说，在这个tvm.ir._ffi_api中就有一个python对象了，
+    # 然后这个对象封装了一个C++函数，并且还有一个is_global属性(bool)
     for name in list_global_func_names():
         if not name.startswith(prefix):
             continue

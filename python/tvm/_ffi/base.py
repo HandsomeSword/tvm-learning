@@ -55,12 +55,18 @@ else:
 
 def _load_lib():
     """Load libary by searching possible path."""
+    # 返回的是libtvm.so、libtvm_runtime.so以及第三方的两个库：libfpA_intB_gemm.dylib和libflash_attn.dll
+    # 如果只是运行的话，只需要返回libtvm_runtime.so
     lib_path = libinfo.find_lib_path()
     # The dll search path need to be added explicitly in
     # windows after python 3.8
     if sys.platform.startswith("win32") and sys.version_info >= (3, 8):
         for path in libinfo.get_dll_directories():
             os.add_dll_directory(path)
+    
+    # 这里就是使用ctypes包，加载动态库，也就是说可以使用c++的函数
+    # ctypes.RTLD_GLOBAL的作用是，动态库之间有依赖。
+    # 这里的动态库要么是libtvm.so，要么是libtvm_runtime.so。
     lib = ctypes.CDLL(lib_path[0], ctypes.RTLD_GLOBAL)
     lib.TVMGetLastError.restype = ctypes.c_char_p
     return lib, os.path.basename(lib_path[0])

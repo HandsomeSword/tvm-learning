@@ -67,7 +67,10 @@ class ObjAllocatorBase {
    */
   template <typename T, typename... Args>
   inline ObjectPtr<T> make_object(Args&&... args) {
+    // 嵌套模板类，这里Derived是一个模板类，Handler是这个模板类的嵌套类
+    // 要使用这个嵌套模板类就得这么写
     using Handler = typename Derived::template Handler<T>;
+    // static_assert用于在编译时检查条件，如果不满足，就生成错误，中止编译
     static_assert(std::is_base_of<Object, T>::value, "make can only be used to create Object");
     T* ptr = Handler::New(static_cast<Derived*>(this), std::forward<Args>(args)...);
     ptr->type_index_ = T::RuntimeTypeIndex();

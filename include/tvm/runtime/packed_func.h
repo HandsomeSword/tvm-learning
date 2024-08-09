@@ -144,6 +144,12 @@ class PackedFunc : public ObjectRef {
    * \brief Constructing a packed function from a callable type
    *        whose signature is consistent with `PackedFunc`
    * \param data the internal container of packed function.
+   * 
+   * 这里定义了模板类型名称是TCallable，并且规定了只有在某些情况下才会启用该模板
+   * TCallable 是一个可以接受 TVMArgs 和 TVMRetValue* 参数的可调用对象，并且不是 PackedFunc 的基类。
+   * explicit关键字说明这是一个显式的构造函数。构造函数如果只有一个参数，那么这个构造函数就可以使用隐式转换。
+   * 所谓隐式就是这种：Myclass x = 1  ==>  Myclass x(1)
+   * 也就是说explicit就是为了防止这种转换
    */
   template <typename TCallable,
             typename = std::enable_if_t<
@@ -1902,6 +1908,7 @@ TypedPackedFunc<R(Args...)>::TypedPackedFunc(TVMMovableArgValueWithContext_&& va
 template <typename R, typename... Args>
 template <typename FType>
 inline void TypedPackedFunc<R(Args...)>::AssignTypedLambda(FType flambda, std::string name) {
+  // 这里的f_sig就是获得了函数签名，包括它的返回值和参数列表，并且使用字符串的方式返回，显示。
   FSig* f_sig = detail::SignaturePrinter<detail::function_signature<FType>>::F;
   packed_ = PackedFunc([flambda, name, f_sig](const TVMArgs& args, TVMRetValue* rv) {
     if (args.size() != sizeof...(Args)) {

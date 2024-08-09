@@ -245,6 +245,8 @@ class PackedFuncBase(object):
 def __init_handle_by_constructor__(fconstructor, args):
     """Initialize handle by constructor"""
     temp_args = []
+    # 这里的fconstructor是一个python对象，封装了c++函数
+    # 通过.handle访问
     values, tcodes, num_args = _make_tvm_args(args, temp_args)
     ret_val = TVMValue()
     ret_tcode = ctypes.c_int()
@@ -284,6 +286,7 @@ def _handle_return_func(x):
 
 
 def _get_global_func(name, allow_missing=False):
+    # handle就是一个c的通用指针
     handle = PackedFuncHandle()
     check_call(_LIB.TVMFuncGetGlobal(c_str(name), ctypes.byref(handle)))
 

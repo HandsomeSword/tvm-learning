@@ -148,6 +148,7 @@ class Registry {
   /*!
    * \brief set the body of the function to be f
    * \param f The body of the function.
+   * 这里tvm_dll规定符号在生成动态链接库时可以被外部使用
    */
   TVM_DLL Registry& set_body(PackedFunc f);  // NOLINT(*)
   /*!
@@ -186,7 +187,15 @@ class Registry {
    */
   template <typename FLambda>
   Registry& set_body_typed(FLambda f) {
+    // 通过将FLambda传入得到函数类型信息，包括返回值和参数
+    // 函数是有类型的，表示为R(Args...)这种。例如,string(int, int)
+    // 普通函数可以直接通过decltype(函数名)得到函数类型，如上所示。
+    // 但是lambda表达式要得到这样的函数类型，需要额外的一些处理。
+    // 也就是说，下面的代码最终得到的就是一个lambda表达式的函数类型，表现为R(Args...)。
     using FType = typename detail::function_signature<FLambda>::FType;
+
+    // TypedPackedFunc就是将函数封装成一个PackedFunc对象，在对象内部可以通过packed_属性访问。
+    // 然后set_body函数就是将当前对象(也就是registry类型)中的func_属性设置为上面所说的PackedFunc对象，然后返回当前registry对象。
     return set_body(TypedPackedFunc<FType>(std::move(f), name_).packed());
   }
   /*!
